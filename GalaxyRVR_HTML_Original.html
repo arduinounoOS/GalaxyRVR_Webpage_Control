@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-CAM WebSocket Control Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f8fa;
+            color: #333;
+            text-align: center;
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+        }
+        #video {
+            width: 75%;
+            max-width: 800px;
+            height: auto;
+            border: 2px solid #333;
+            border-radius: 10px;
+        }
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #controls, #data-controls {
+            text-align: left;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            width: 300px;
+        }
+        .clickable-map {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .map-indicator {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .slider-container, .data-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        label {
+            font-weight: bold;
+            margin-right: auto;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            margin: 0 10px;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            border: 1px solid #000;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -5px;
+        }
+        input[type=range]:focus::-webkit-slider-runnable-track {
+            background: #ccc;
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type=range]::-moz-range-thumb {
+            border: 1px solid #000;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        input[type=range]::-ms-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: transparent;
+            border-color: transparent;
+            color: transparent;
+        }
+        input[type=range]::-ms-fill-lower {
+            background: #ddd;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type=range]::-ms-fill-upper {
+            background: #ddd;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type=range]::-ms-thumb {
+            border: 1px solid #000;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        .value-display {
+            font-size: 1.1em;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <img id="video" alt="Live stream video not available" />
+
+    <div class="controls-container">
+        <div id="controls">
+            <div class="clickable-map" id="clickableMap">
+                <div class="map-indicator" id="mapIndicator"></div>
+            </div>
+            <div class="slider-container">
+                <label for="servo">Servo (Region D):</label>
+                <input type="range" id="servo" min="0" max="180" value="24">
+                <span id="servoValue" class="value-display">24</span>
+            </div>
+            <div class="slider-container">
+                <label for="led">LED (Region A):</label>
+                <input type="checkbox" id="ledCheckbox">
+            </div>
+        </div>
+
+        <div id="data-controls">
+            <div class="data-item">
+                <label><strong>BV:</strong></label>
+                <span id="bvValue" class="value-display">N/A</span>
+            </div>
+            <div class="data-item">
+                <label><strong>J:</strong></label>
+                <span id="jValue" class="value-display">N/A</span>
+            </div>
+            <div class="data-item">
+                <label><strong>N:</strong></label>
+                <span id="nValue" class="value-display">N/A</span>
+            </div>
+            <div class="data-item">
+                <label><strong>O:</strong></label>
+                <span id="oValue" class="value-display">N/A</span>
+            </div>
+            <div class="data-item">
+                <label><strong>P:</strong></label>
+                <span id="pValue" class="value-display">N/A</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ESP32_IP_ADDRESS = '192.168.4.1'; // Your ESP32's IP address
+        const WEBSOCKET_PORT = 8765;
+
+        const videoElement = document.getElementById('video');
+        const servo = document.getElementById('servo');
+        const servoValue = document.getElementById('servoValue');
+        const ledCheckbox = document.getElementById('ledCheckbox');
+
+        const bvValue = document.getElementById('bvValue');
+        const jValue = document.getElementById('jValue');
+        const nValue = document.getElementById('nValue');
+        const oValue = document.getElementById('oValue');
+        const pValue = document.getElementById('pValue');
+
+        const clickableMap = document.getElementById('clickableMap');
+        const mapIndicator = document.getElementById('mapIndicator');
+
+        let throttle1Value = 0; // Motor for the left side
+        let throttle2Value = 0; // Motor for the right side
+
+        const ws = new WebSocket(`ws://${ESP32_IP_ADDRESS}:${WEBSOCKET_PORT}`);
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket');
+            videoElement.src = `http://${ESP32_IP_ADDRESS}:9000/mjpg`; // Set the video stream source
+
+            // Start the interval to send data every 60ms
+            setInterval(sendControlValues, 60);
+        };
+
+        ws.onmessage = (event) => {
+            const messageData = event.data;
+            try {
+                const messageJson = JSON.parse(messageData);
+
+                // Update the received data displays
+                if ('BV' in messageJson) bvValue.textContent = messageJson.BV.toFixed(2);
+                if ('O' in messageJson) oValue.textContent = messageJson.O.toFixed(2);
+                if ('J' in messageJson) jValue.textContent = messageJson.J;
+                if ('N' in messageJson) nValue.textContent = messageJson.N;
+                if ('P' in messageJson) pValue.textContent = messageJson.P;
+
+                console.log('Received JSON Message:', messageJson);
+            } catch (err) {
+                if (messageData === 'pong') {
+                    console.log('Received: pong');
+                    ws.send('ping');
+                    console.log('Sent: ping');
+                } else {
+                    console.log('Received Text Message:', messageData);
+                }
+            }
+        };
+
+        let isDragging = false;
+
+        const updateThrottleValues = (event) => {
+            if (!isDragging) return;
+
+            const rect = clickableMap.getBoundingClientRect();
+            const x = (event.clientX || event.touches[0].clientX) - rect.left;
+            const y = (event.clientY || event.touches[0].clientY) - rect.top;
+
+            // Normalize y and x to range [-100, 100]
+            const normalizedY = Math.round(100 - ((y / rect.height) * 200));
+            const normalizedX = Math.round(((x / rect.width) * 200) - 100);
+
+            // Calculate motor speeds
+            throttle1Value = normalizedY - normalizedX / 2; // Adjust left motor
+            throttle2Value = normalizedY + normalizedX / 2; // Adjust right motor
+
+            // Limit values to stay within bounds
+            throttle1Value = Math.max(-100, Math.min(100, throttle1Value));
+            throttle2Value = Math.max(-100, Math.min(100, throttle2Value));
+
+            // Position the indicator
+            mapIndicator.style.left = `${Math.min(Math.max(0, x), rect.width) - mapIndicator.offsetWidth / 2}px`;
+            mapIndicator.style.top = `${Math.min(Math.max(0, y), rect.height) - mapIndicator.offsetWidth / 2}px`;
+        };
+
+        clickableMap.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            updateThrottleValues(event);
+        });
+
+        clickableMap.addEventListener('touchstart', (event) => {
+            isDragging = true;
+            updateThrottleValues(event);
+        });
+
+        window.addEventListener('mousemove', updateThrottleValues);
+        window.addEventListener('touchmove', updateThrottleValues);
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                resetThrottleValues();
+            }
+        });
+
+        window.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                resetThrottleValues();
+            }
+        });
+
+        function resetThrottleValues() {
+            throttle1Value = 0;
+            throttle2Value = 0;
+            mapIndicator.style.left = '50%';
+            mapIndicator.style.top = '50%';
+        }
+
+        function sendControlValues() {
+            const data = {
+                K: throttle1Value,
+                Q: throttle2Value,
+                D: parseInt(servo.value, 10),
+                A: ledCheckbox.checked ? 1 : 0 // LED on when checked, off when not
+            };
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+                console.log('Sent:', JSON.stringify(data));
+            }
+        }
+
+        function setControlListener(control, valueSpan, callback) {
+            control.addEventListener('input', (event) => {
+                valueSpan.textContent = event.target.value;
+                callback();
+            });
+        }
+
+        setControlListener(servo, servoValue, sendControlValues);
+        ledCheckbox.addEventListener('change', sendControlValues);
+
+        ws.onclose = () => {
+            console.log('Disconnected from WebSocket');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+        };
+    </script>
+</body>
+</html>
