@@ -14,6 +14,8 @@ The other version, GalaxyRVR_WS_JSON_JAVA, uses a modified version of the SunFou
 
 galaxy-rvr-ino-mod1.ino reflects this program.
 
+To use this, just create a folder called "galaxy-rvr-ino-mod1", copy all the original files into it, and the new ino file.
+
 Please send any questions or comments or requests!
 
 Thank you.
