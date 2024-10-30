@@ -10,8 +10,9 @@ If it hasn't connected, just reload the page. You can edit other things in the f
 
 
 
-The other version, GalaxyRVR_WS_JSON_JAVA, uses a modified version of the SunFounder Galaxy Atmega code. This version takes "X,Y' input from regions K and Q, and the Arduino program translates these to the left and right motors.
-I am working on uploading this code. It also uses a 0-10 input for the LED, and the progam was modified to reflect this as well.
+The other version, GalaxyRVR_WS_JSON_JAVA, uses a modified version of the SunFounder Galaxy Atmega code. This version takes "X,Y' input from regions K and Q, and the Arduino program translates these to the left and right motors. It also uses a 0-10 input for the LED, and the progam was modified to reflect this as well.
+
+galaxy-rvr-ino-mod1.ino reflects this program.
 
 Please send any questions or comments or requests!
 
