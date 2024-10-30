@@ -1,5 +1,8 @@
 /*******************************************************************
   The control program of the Ardunio GalaxyRVR.
+
+  Edited by KYLED - accepts x,y input from regions K and Q, translates this to throttle outputs,
+  Accepts 0-10 for LED value.
   
   Please install the SunFounder Controller APP from APP Store(iOS) or Google Play(Android).
 
@@ -25,12 +28,6 @@
 
 ********************************************************************/
 
-
-/*
-** KYLED chagned power for follow, track, avoid, and voice to 10 from 80
-** No connection RGB to red
-** No connection delay to 0
-*/
 
 #define VERSION "1.1.0"
 
