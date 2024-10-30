@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-CAM WebSocket Control Interface</title>
+    <style>
+        #video {
+            width: 1300px; /* Set the video width to 1024 pixels */
+            height: auto;  /* Maintain the aspect ratio */
+            border: 1px solid black;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32-CAM WebSocket Control Interface</h1>
+    <img id="video" alt="Live stream video not available" />
+    
+    <div id="controls">
+        <label for="throttle1">Throttle 1 (Region K):</label>
+        <input type="range" id="throttle1" min="-100" max="100" value="0">
+        <span id="throttle1Value">0</span>
+        <br>
+        <label for="throttle2">Throttle 2 (Region Q):</label>
+        <input type="range" id="throttle2" min="-100" max="100" value="0">
+        <span id="throttle2Value">0</span>
+        <br>
+        <label for="servo">Servo (Region D):</label>
+        <input type="range" id="servo" min="0" max="180" value="24">
+        <span id="servoValue">24</span>
+        <br>
+        <label for="led">LED Intensity (Region A):</label>
+        <input type="range" id="led" min="0" max="10" value="0">
+        <span id="ledValue">0</span>
+    </div>
+
+    <script>
+        const ESP32_IP_ADDRESS = '192.168.4.1'; // Your ESP32's IP address
+        const WEBSOCKET_PORT = 8765;
+
+        const videoElement = document.getElementById('video');
+        const throttle1 = document.getElementById('throttle1');
+        const throttle1Value = document.getElementById('throttle1Value');
+        const throttle2 = document.getElementById('throttle2');
+        const throttle2Value = document.getElementById('throttle2Value');
+        const servo = document.getElementById('servo');
+        const servoValue = document.getElementById('servoValue');
+        const led = document.getElementById('led');
+        const ledValue = document.getElementById('ledValue');
+
+        const ws = new WebSocket(`ws://${ESP32_IP_ADDRESS}:${WEBSOCKET_PORT}`);
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket');
+
+            // Start the interval to send data every 100ms
+            setInterval(sendControlValues, 60);
+        };
+
+        ws.onmessage = (event) => {
+            const messageData = event.data;
+            try {
+                const messageJson = JSON.parse(messageData);
+
+                if (messageJson.video) {
+                    videoElement.src = messageJson.video;  // Assumes video URL is sent in a JSON message
+                }
+
+                console.log('Received JSON Message:', messageJson);
+            } catch (err) {
+                console.log('Received Text Message:', messageData);
+            }
+        };
+
+        function setControlListener(control, valueSpan, callback) {
+            control.addEventListener('input', (event) => {
+                const value = event.target.value;
+                valueSpan.textContent = value;
+                callback();
+            });
+        }
+
+        function resetThrottle(throttle, throttleValueSpan) {
+            throttle.value = 0;
+            throttleValueSpan.textContent = 0;
+            sendControlValues();
+        }
+
+        function sendControlValues() {
+            const timestamp = new Date().getTime(); // Timestamp as a "ping"
+            const data = {
+                K: parseInt(throttle1.value, 10), // Throttle 1 is mapped to region K
+                Q: parseInt(throttle2.value, 10), // Throttle 2 is mapped to region Q
+                D: parseInt(servo.value, 10),     // Servo is mapped to region D
+                A: parseInt(led.value, 10),       // LED intensity is mapped to region A
+                ping: timestamp                   // Simple ping value; could be a timestamp
+            };
+
+            // Check if the WebSocket is open before sending
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+                console.log('Sent:', JSON.stringify(data));
+            }
+        }
+
+        // Initialize control listeners
+        setControlListener(throttle1, throttle1Value, sendControlValues);
+        setControlListener(throttle2, throttle2Value, sendControlValues);
+        setControlListener(servo, servoValue, sendControlValues);
+        setControlListener(led, ledValue, sendControlValues);
+
+        throttle1.addEventListener('mouseup', () => resetThrottle(throttle1, throttle1Value));
+        throttle2.addEventListener('mouseup', () => resetThrottle(throttle2, throttle2Value));
+        throttle1.addEventListener('touchend', () => resetThrottle(throttle1, throttle1Value));
+        throttle2.addEventListener('touchend', () => resetThrottle(throttle2, throttle2Value));
+
+        ws.onclose = () => {
+            console.log('Disconnected from WebSocket');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+        };
+    </script>
+</body>
+</html>
