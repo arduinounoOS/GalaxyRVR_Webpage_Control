@@ -12,6 +12,13 @@
             text-align: center;
             margin: 20px;
             display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 20px;
+        }
+        .main-container {
+            display: flex;
             justify-content: center;
             align-items: flex-start;
             gap: 20px;
@@ -42,6 +49,19 @@
             width: 200px;
             height: 200px;
             background-color: #eee;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 19px,
+                    #ccc 20px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 19px,
+                    #ccc 20px
+                );
             border: 1px solid #ccc;
             margin-bottom: 20px;
             cursor: pointer;
@@ -139,50 +159,68 @@
             font-size: 1.1em;
             color: #555;
         }
+        #log {
+            width: 80%;
+            max-width: 800px;
+            height: 150px;
+            font-family: monospace;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: scroll;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
-    <img id="video" alt="Live stream video not available" />
 
-    <div class="controls-container">
-        <div id="controls">
-            <div class="clickable-map" id="clickableMap">
-                <div class="map-indicator" id="mapIndicator"></div>
-            </div>
-            <div class="slider-container">
-                <label for="servo">Servo (Region D):</label>
-                <input type="range" id="servo" min="0" max="180" value="24">
-                <span id="servoValue" class="value-display">24</span>
-            </div>
-            <div class="slider-container">
-                <label for="led">LED (Region A):</label>
-                <input type="checkbox" id="ledCheckbox">
-            </div>
-        </div>
+    <div class="main-container">
+        <img id="video" alt="Live stream video not available" />
 
-        <div id="data-controls">
-            <div class="data-item">
-                <label><strong>BV:</strong></label>
-                <span id="bvValue" class="value-display">N/A</span>
+        <div class="controls-container">
+            <div id="controls">
+                <div class="clickable-map" id="clickableMap">
+                    <div class="map-indicator" id="mapIndicator"></div>
+                </div>
+                <div class="slider-container">
+                    <label for="servo">Servo (Region D):</label>
+                    <input type="range" id="servo" min="0" max="180" value="90">
+                    <span id="servoValue" class="value-display">90</span>
+                </div>
+                <div class="slider-container">
+                    <label for="led">LED (Region M):</label>
+                    <input type="checkbox" id="ledCheckbox">
+                </div>
             </div>
-            <div class="data-item">
-                <label><strong>J:</strong></label>
-                <span id="jValue" class="value-display">N/A</span>
-            </div>
-            <div class="data-item">
-                <label><strong>N:</strong></label>
-                <span id="nValue" class="value-display">N/A</span>
-            </div>
-            <div class="data-item">
-                <label><strong>O:</strong></label>
-                <span id="oValue" class="value-display">N/A</span>
-            </div>
-            <div class="data-item">
-                <label><strong>P:</strong></label>
-                <span id="pValue" class="value-display">N/A</span>
+
+            <div id="data-controls">
+                <div class="data-item">
+                    <label><strong>BV:</strong></label>
+                    <span id="bvValue" class="value-display">N/A</span>
+                </div>
+                <div class="data-item">
+                    <label><strong>J:</strong></label>
+                    <span id="jValue" class="value-display">N/A</span>
+                </div>
+                <div class="data-item">
+                    <label><strong>N:</strong></label>
+                    <span id="nValue" class="value-display">N/A</span>
+                </div>
+                <div class="data-item">
+                    <label><strong>O:</strong></label>
+                    <span id="oValue" class="value-display">N/A</span>
+                </div>
+                <div class="data-item">
+                    <label><strong>P:</strong></label>
+                    <span id="pValue" class="value-display">N/A</span>
+                </div>
             </div>
         </div>
     </div>
+
+    <pre id="log"></pre>
 
     <script>
         const ESP32_IP_ADDRESS = '192.168.4.1'; // Your ESP32's IP address
@@ -202,13 +240,20 @@
         const clickableMap = document.getElementById('clickableMap');
         const mapIndicator = document.getElementById('mapIndicator');
 
-        let throttle1Value = 0; // Motor for the left side
-        let throttle2Value = 0; // Motor for the right side
+        const logElement = document.getElementById('log');
+
+        let throttle1Value = 0; // Motor for the right side
+        let throttle2Value = 0; // Motor for the left side
 
         const ws = new WebSocket(`ws://${ESP32_IP_ADDRESS}:${WEBSOCKET_PORT}`);
 
+        const log = (message) => {
+            logElement.textContent += `${message}\n`;
+            // Do not automatically scroll
+        };
+
         ws.onopen = () => {
-            console.log('Connected to WebSocket');
+            log('Connected to WebSocket');
             videoElement.src = `http://${ESP32_IP_ADDRESS}:9000/mjpg`; // Set the video stream source
 
             // Start the interval to send data every 60ms
@@ -227,14 +272,14 @@
                 if ('N' in messageJson) nValue.textContent = messageJson.N;
                 if ('P' in messageJson) pValue.textContent = messageJson.P;
 
-                console.log('Received JSON Message:', messageJson);
+                log(`Received JSON Message: ${JSON.stringify(messageJson)}`);
             } catch (err) {
                 if (messageData === 'pong') {
-                    console.log('Received: pong');
+                    log('Received: pong');
                     ws.send('ping');
-                    console.log('Sent: ping');
+                    log('Sent: ping');
                 } else {
-                    console.log('Received Text Message:', messageData);
+                    log(`Received Text Message: ${messageData}`);
                 }
             }
         };
@@ -253,8 +298,8 @@
             const normalizedX = Math.round(((x / rect.width) * 200) - 100);
 
             // Calculate motor speeds
-            throttle1Value = normalizedY - normalizedX / 2; // Adjust left motor
-            throttle2Value = normalizedY + normalizedX / 2; // Adjust right motor
+            throttle1Value = normalizedY + normalizedX / 2; // Adjust right motor
+            throttle2Value = normalizedY - normalizedX / 2; // Adjust left motor
 
             // Limit values to stay within bounds
             throttle1Value = Math.max(-100, Math.min(100, throttle1Value));
@@ -304,12 +349,12 @@
                 K: throttle1Value,
                 Q: throttle2Value,
                 D: parseInt(servo.value, 10),
-                A: ledCheckbox.checked ? 1 : 0 // LED on when checked, off when not
+                M: ledCheckbox.checked ? 1 : 0 // LED on when checked, off when not
             };
 
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(data));
-                console.log('Sent:', JSON.stringify(data));
+                log(`Sent: ${JSON.stringify(data)}`);
             }
         }
 
@@ -324,11 +369,11 @@
         ledCheckbox.addEventListener('change', sendControlValues);
 
         ws.onclose = () => {
-            console.log('Disconnected from WebSocket');
+            log('Disconnected from WebSocket');
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket Error:', error);
+            log(`WebSocket Error: ${error}`);
         };
     </script>
 </body>
